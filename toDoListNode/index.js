@@ -5,18 +5,33 @@ const { stringify } = require('querystring')
 const app = express()
 const port = 8080
 
-// app.use(express.json())
+app.use(express.json())
+app.use(express.urlencoded( { extended: true } ))
+
 app.get('/', (req, res) => {
     return res.send('hello world')
 })
 
 app.get('/todos', (req, res) => {
+    // filter to dos by complete and incomplete
+    const showPending = req.query.showpending
+
+
+
     fs.readFile('./store/todos.json', 'utf-8', (err, data) => {
         if(err) {
             return res.status(500).send('something went wrong')
         }
         const todos = JSON.parse(data)
-        return res.json({todos: todos })
+
+        if (showPending !== "1") {
+            return res.json({todos: todos })
+        } else {
+            return res.json({todos: todos.filter(t => { return t.complete === false }) })
+        }
+
+
+        
     })
 })
 
@@ -52,13 +67,31 @@ app.put('/todos/:id/complete', (req, res) => {
 })
 })
 
+// allowing the user to add todos
 
+app.post('/todo', (req, res) => {
+    if (!req.body.name) {
+        return res.status(400).send('missing name')
+    }
 
+    fs.readFile('./store/todos.json', 'utf-8', (err, data) => {
+        if (err) {
+            return res.status(500).send('something went wrong')
+        }
+        const todos = JSON.parse(data)
+        const maxId = Math.max.apply(Math, todos.map(t => { return t.id }))
 
-
-
-
-
+        todos.push({
+            id: maxId + 1,
+            complete: false,
+            name: req.body.name
+        })
+        fs.writeFile('./store/todos.json', JSON.stringify(todos), () => {
+            return res.json({'status': 'ok'})
+        })
+        
+    })
+})
 
 
 app.listen(port, () => console.log(`application running on port ${port}`))
